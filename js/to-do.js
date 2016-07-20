@@ -1,10 +1,13 @@
 var ToDo = (function () {
-    function ToDo(list) {
+    function ToDo(list, countTaskELm) {
         this.task = "";
         var cookies = this.getCookie('task-');
+        this.countTaskELm = countTaskELm;
         this.getTaskList(list);
+        cookies.sort();
         if (cookies.length > 0) {
             var cookLen = cookies.length;
+            this.taskCount(this.countTaskELm, cookLen, '(' + cookLen + ')');
             document.getElementById('small').remove();
             for (var i = 0; i < cookLen; i++) {
                 var cookie = cookies[i].split('=');
@@ -15,6 +18,11 @@ var ToDo = (function () {
             }
         }
     }
+    ToDo.prototype.cookieLength = function () {
+        var cookies = this.getCookie('task-');
+        this.taskNo = cookies.length;
+        return this.taskNo;
+    };
     ToDo.prototype.getTaskList = function (list) {
         var elm = list[0].childNodes;
         var taskList = [];
@@ -29,7 +37,7 @@ var ToDo = (function () {
     ToDo.prototype.getTask = function (task) {
         var val = task.value;
         if (val.length > 0) {
-            this.task = val;
+            this.task = val.trim();
         }
     };
     ToDo.prototype.addTask = function (list, message, taskBox) {
@@ -46,6 +54,7 @@ var ToDo = (function () {
             var taskNo = this.taskNo + 1;
             if (taskNo > 0) {
                 document.cookie = "task-" + taskNo + "=" + task;
+                this.taskCount(this.countTaskELm, taskNo, '(' + taskNo + ')');
                 this.addHtml(task, taskNo, list);
                 taskBox.value = "";
                 this.task = "";
@@ -59,32 +68,51 @@ var ToDo = (function () {
     ToDo.prototype.addHtml = function (task, taskNo, list) {
         var ul = document.createElement("ul");
         ul.setAttribute('class', 'task-' + taskNo);
+        this.taskSnippet(task, taskNo, ul);
+        list[0].appendChild(ul);
+    };
+    ToDo.prototype.taskSnippet = function (task, taskNo, ul) {
         var name = document.createElement("li");
+        name.setAttribute('id', 'task-' + taskNo);
         var dlt = document.createElement("li");
         var taskName = document.createTextNode(task);
+        var edit = document.createElement('i');
+        var text = document.createTextNode('mode_edit');
+        edit.appendChild(text);
+        edit.setAttribute('class', 'small material-icons edit');
+        this.setAttributes(edit, {
+            'title': 'Edit',
+            'id': 'edit-task-' + taskNo
+        });
         var dltbtn = document.createElement('button');
-        dltbtn.setAttribute('class', 'round btn btn-danger');
-        dltbtn.setAttribute('task-id', 'task-' + taskNo);
+        this.setAttributes(dltbtn, {
+            'task-id': 'task-' + taskNo,
+            'title': 'Trash',
+            'class': 'round btn btn-danger'
+        });
         var icon = document.createElement('i');
-        icon.setAttribute('class', 'glyphicon glyphicon-trash');
-        icon.setAttribute('task-id', 'task-' + taskNo);
+        this.setAttributes(icon, {
+            'task-id': 'task-' + taskNo,
+            'class': 'glyphicon glyphicon-trash'
+        });
         dltbtn.appendChild(icon);
         name.appendChild(taskName);
+        name.appendChild(edit);
         dlt.appendChild(dltbtn);
         ul.appendChild(name);
         ul.appendChild(dlt);
-        list[0].appendChild(ul);
     };
     ToDo.prototype.deleteTask = function (list) {
         var _this = this;
         var tasks = list[0];
         tasks.onclick = function (e) {
             var target = e.target || e.srcElement;
-            var cookie = target.attributes[1].value;
+            var cookie = target.attributes[0].value;
             var now = new Date();
+            console.clear();
             if (cookie.indexOf('task-') == 0) {
                 now.setDate(now.getDate());
-                cookies = _this.getCookie(cookie, 'yes');
+                var cookies = _this.getCookie(cookie, 'yes');
                 // name = cookie[0];
                 var value = cookie[1];
                 // now.toGMTString()
@@ -94,13 +122,22 @@ var ToDo = (function () {
                     success += " Your task deleted successfully</small>";
                     document.getElementsByClassName(cookie)[0].innerHTML = success;
                     _this.getTaskList(list);
-                    setTimeout(function (taskNo) {
+                    setTimeout(function (taskNo, countTaskELm, taskCount) {
                         document.getElementsByClassName(cookie)[0].remove();
                         taskNo--;
+                        taskCount(countTaskELm, taskNo, '(' + taskNo + ')');
                         if (taskNo == 0) {
                             tasks.innerHTML = "<small id='small'>Nothing at the moment</small>";
                         }
-                    }, 2000, _this.taskNo);
+                    }, 2000, _this.taskNo, _this.countTaskELm, _this.taskCount);
+                    window.onmouseover = function () {
+                        var taskNo = _this.cookieLength();
+                        _this.taskCount(_this.countTaskELm, taskNo, '(' + taskNo + ')');
+                        if (_this.taskNo == 0) {
+                            tasks.innerHTML = "<small id='small'>Nothing at the moment</small>";
+                        }
+                        console.clear();
+                    };
                 }
             }
         };
@@ -123,6 +160,14 @@ var ToDo = (function () {
         }
         return (split == 'yes') ? piece : array;
     };
+    ToDo.prototype.taskCount = function (elm, taskCount, output) {
+        if (taskCount > 0) {
+            elm.innerHTML = output;
+        }
+        else {
+            elm.innerHTML = '';
+        }
+    };
     ToDo.prototype.alert = function (type, message) {
         var icon = (type == 'danger') ? 'exclamation-sign' : 'ok';
         var html = "<p class='alet alert-" + type + "'>";
@@ -131,6 +176,99 @@ var ToDo = (function () {
         html += "</span> " + message + "</p>";
         return html;
     };
+    ToDo.prototype.edit = function (tasks) {
+        var _this = this;
+        tasks[0].onmouseover = function (e) {
+            var target = e.target || e.srcElement;
+            var attr = target.attributes[2].value;
+            console.clear();
+            if (attr.lastIndexOf('edit-task-') != -1) {
+                var edit = document.getElementById(attr);
+                _this.doEdit(attr, edit);
+            }
+        };
+    };
+    ToDo.prototype.doEdit = function (task, edit) {
+        var _this = this;
+        task = task.replace('edit-', '');
+        var taskToEdit = document.getElementsByClassName(task)[0];
+        var taskname = this.getCookie(task, 'yes')[1]; // error
+        var inputClass = 'field-' + task;
+        var taskNo = task.split('-').pop();
+        edit.onclick = function () {
+            var editBox = document.createElement('li');
+            editBox.setAttribute('id', 'edit-' + task);
+            var cancelLi = document.createElement('li');
+            var cancelBtn = document.createElement('button');
+            _this.setAttributes(cancelBtn, {
+                'title': 'Cancel',
+                'id': 'cancel-' + task,
+                'class': 'round btn btn-danger'
+            });
+            var cancelIco = document.createElement('i');
+            _this.setAttributes(cancelIco, {
+                'id': 'cancel-' + task,
+                'class': 'glyphicon glyphicon-remove'
+            });
+            var editInp = document.createElement('input');
+            _this.setAttributes(editInp, {
+                'type': 'text',
+                'autcomplete': 'off',
+                'value': taskname,
+                'maxlength': 60,
+                'placeholder': 'Edit Task',
+                'id': 'task',
+                'class': inputClass
+            });
+            var editBtn = document.createElement('button');
+            _this.setAttributes(editBtn, {
+                'class': 'btn btn-default save-edit-' + task,
+                'title': 'Save Edit',
+                'id': 'btn'
+            });
+            var icon = document.createElement('i');
+            icon.setAttribute('class', 'small material-icons save-edit-' + task);
+            var icoText = document.createTextNode('mode_edit');
+            icon.appendChild(icoText);
+            editBtn.appendChild(icon);
+            cancelBtn.appendChild(cancelIco);
+            editBox.appendChild(editInp);
+            editBox.appendChild(editBtn);
+            cancelLi.appendChild(cancelBtn);
+            taskToEdit.innerHTML = "";
+            taskToEdit.appendChild(editBox);
+            taskToEdit.appendChild(cancelLi);
+            var input = document.getElementsByClassName(inputClass)[0];
+            var cancel = document.getElementById('cancel-' + task);
+            cancel.onclick = function () {
+                taskToEdit.innerHTML = '';
+                _this.taskSnippet(taskname, taskNo, taskToEdit);
+            };
+            input.onkeyup = function () {
+                editedTask = input.value.trim();
+                if (editedTask.length > 0) {
+                    _this.editCookie(task, editedTask, taskNo, taskToEdit);
+                }
+                else {
+                }
+            };
+        };
+    };
+    ToDo.prototype.setAttributes = function (el, attrs) {
+        for (var key in attrs) {
+            el.setAttribute(key, attrs[key]);
+        }
+    };
+    ToDo.prototype.editCookie = function (task, editedTask, taskNo, taskToEdit) {
+        var _this = this;
+        var saveBtn = document.getElementsByClassName('save-edit-' + task)[0];
+        saveBtn.onclick = function () {
+            taskToEdit.innerHTML = '';
+            var editBox = document.getElementsByClassName('edit-' + task)[0];
+            document.cookie = task + "=" + editedTask;
+            _this.taskSnippet(editedTask, taskNo, taskToEdit);
+        };
+    };
     return ToDo;
 }());
 window.onload = function () {
@@ -138,7 +276,8 @@ window.onload = function () {
     var add = document.getElementById('btn');
     var message = document.getElementById('message');
     var list = document.getElementsByClassName('list');
-    var todo = new ToDo(list);
+    var taskCountElm = document.getElementById('task-count');
+    var todo = new ToDo(list, taskCountElm);
     task.onkeyup = function () {
         todo.getTask(task);
         add.onclick = function () {
@@ -151,4 +290,10 @@ window.onload = function () {
         };
     };
     todo.deleteTask(list);
+    todo.edit(list);
+    window.onmouseover = function () {
+        console.clear();
+        var taskCount = todo.cookieLength();
+        todo.taskCount(taskCountElm, taskCount, '(' + taskCount + ')');
+    };
 };
