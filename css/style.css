@@ -1,4 +1,4 @@
-	@import url(https://fonts.googleapis.com/css?family=Raleway);
+@import url(https://fonts.googleapis.com/css?family=Raleway);
 
 body {
 	font-family: 'Raleway', sans-serif;
@@ -76,4 +76,15 @@ input:focus, button:focus {
 .round {
 	border-radius: 100px;
     padding: 12px;
+}
+
+.edit {
+	margin: 0 5px;
+    cursor: pointer;
+    padding: 4px;
+    border-radius: 100px;
+}
+
+#task-count {
+	cursor: default;
 }
