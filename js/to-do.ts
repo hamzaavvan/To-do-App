@@ -1,15 +1,27 @@
 class ToDo {
-	private task:string = "";
-	private taskList:string[];
-	protected taskNo:number;
+	private task:string = "",
+	 		taskList:string[];
+	public taskNo:number;
+	public countTaskELm;
 
-	constructor(list) {
+	cookieLength():number {
 		var cookies = this.getCookie('task-');
 
+		this.taskNo = cookies.length;
+		return this.taskNo;
+	}
+
+	constructor(list, countTaskELm) {
+		var cookies = this.getCookie('task-');
+		
+		this.countTaskELm = countTaskELm;
 		this.getTaskList(list);
+
+		cookies.sort();
 
 		if (cookies.length > 0) {
 			var cookLen = cookies.length;
+			this.taskCount(this.countTaskELm, cookLen, '('+cookLen+')');
 			document.getElementById('small').remove();
 
 			for (var i=0; i<cookLen; i++) {
@@ -42,7 +54,7 @@ class ToDo {
 		var val = task.value;
 
 		if (val.length > 0) {
-			this.task = val;
+			this.task = val.trim();
 		}
 	}
 
@@ -50,7 +62,7 @@ class ToDo {
 		var task = this.task;		
 		var err = this.alert('danger', 'Please type in the task field');
 		var success = this.alert('success', 'Task added successfully');
-		
+
 		if (task.length > 0) {
 			message.innerHTML = success
 
@@ -65,6 +77,7 @@ class ToDo {
 
 			if (taskNo > 0) {
 	    		document.cookie = "task-"+taskNo+"="+task;
+				this.taskCount(this.countTaskELm, taskNo, '('+taskNo+')');
 				this.addHtml(task, taskNo, list);
 				taskBox.value = "";
 				this.task = "";
@@ -79,44 +92,67 @@ class ToDo {
 		var ul = document.createElement("ul");
 		ul.setAttribute('class', 'task-'+taskNo);
 
-		var name = document.createElement("li");
-		var dlt = document.createElement("li");
-
-		var taskName = document.createTextNode(task);
-		
-		var dltbtn = document.createElement('button');
-		dltbtn.setAttribute('class', 'round btn btn-danger');
-		dltbtn.setAttribute('task-id', 'task-'+taskNo);
-
-		var icon = document.createElement('i');
-		icon.setAttribute('class', 'glyphicon glyphicon-trash');
-		icon.setAttribute('task-id', 'task-'+taskNo);
-
-		dltbtn.appendChild(icon);
-          
-
-		name.appendChild(taskName);
-		dlt.appendChild(dltbtn);
-		
-		ul.appendChild(name);
-		ul.appendChild(dlt);
+		this.taskSnippet(task, taskNo, ul);
 
 		list[0].appendChild(ul);
 		
 	}
 
+	taskSnippet(task, taskNo, ul) {
+		var name = document.createElement("li");
+		name.setAttribute('id', 'task-'+taskNo);
+		
+		var dlt = document.createElement("li");
+		var taskName = document.createTextNode(task);
+		var edit = document.createElement('i');
+
+		var text = document.createTextNode('mode_edit');
+		edit.appendChild(text);
+
+		edit.setAttribute('class', 'small material-icons edit');
+		this.setAttributes(edit, {
+			'title': 'Edit',
+			'id': 'edit-task-'+taskNo
+		});
+
+		var dltbtn = document.createElement('button');
+		this.setAttributes(dltbtn, {
+			'task-id': 'task-'+taskNo,
+			'title': 'Trash',
+			'class': 'round btn btn-danger'
+		});
+
+		var icon = document.createElement('i');
+		this.setAttributes(icon, {
+			'task-id': 'task-'+taskNo,
+			'class': 'glyphicon glyphicon-trash',
+		})
+
+		dltbtn.appendChild(icon);
+
+		name.appendChild(taskName);
+		name.appendChild(edit);
+		dlt.appendChild(dltbtn);
+
+		ul.appendChild(name);
+		ul.appendChild(dlt);
+	}
+
 	deleteTask(list) {
 		var tasks = list[0];
 
+
 		tasks.onclick = (e) => {
 			var target = e.target || e.srcElement;
-			var cookie = target.attributes[1].value;
+			var cookie = target.attributes[0].value;
 			var now = <any>new Date();
+			
+			console.clear();						
 
 			if (cookie.indexOf('task-') == 0) {
 				now.setDate(now.getDate());
 
-				cookies = this.getCookie(cookie, 'yes');
+				var cookies = this.getCookie(cookie, 'yes');
 				// name = cookie[0];
 				var value = cookie[1];
 				
@@ -130,21 +166,34 @@ class ToDo {
 					
 					this.getTaskList(list);
 
-					setTimeout(function (taskNo) {
+					setTimeout(function (taskNo, countTaskELm, taskCount) {
 						document.getElementsByClassName(cookie)[0].remove();
 						taskNo--;
+
+						taskCount(countTaskELm, taskNo, '('+taskNo+')');
 
 						if (taskNo == 0) {
 							tasks.innerHTML = "<small id='small'>Nothing at the moment</small>";								
 						}
-					}, 2000, this.taskNo);
+					}, 2000, this.taskNo, this.countTaskELm, this.taskCount);
+
+					window.onmouseover = () => {
+						var taskNo = this.cookieLength();
+						this.taskCount(this.countTaskELm, taskNo, '('+taskNo+')');
+
+						if (this.taskNo == 0) {
+							tasks.innerHTML = "<small id='small'>Nothing at the moment</small>";								
+						}
+
+						console.clear();						
+					}
 				}
 
 			}
 		};
 	}
 
-	getCookie(name, split = 'no') {
+	getCookie(name:string, split:string = 'no') {
 		var cookie = document.cookie;
 		var pieces = <any>cookie.split(';');
 		var array = [];
@@ -164,6 +213,14 @@ class ToDo {
 		return (split == 'yes') ? piece : array;
 	}
 
+	taskCount(elm, taskCount, output) {
+		if (taskCount > 0) {
+			elm.innerHTML = output
+		}else {
+			elm.innerHTML = '';
+		}
+	}
+
 	alert(type:string, message:string) {
 		var icon = (type == 'danger') ? 'exclamation-sign' : 'ok' ;
 
@@ -174,6 +231,116 @@ class ToDo {
 
 		return html;
 	}
+
+	edit(tasks) {
+		tasks[0].onmouseover = (e) => {
+			var target = e.target || e.srcElement;
+			var attr = target.attributes[2].value;
+
+			console.clear();
+			
+			if (attr.lastIndexOf('edit-task-') != -1) {
+				var edit = document.getElementById(attr);
+
+				this.doEdit(attr, edit);
+			}
+		}
+	}
+
+	doEdit(task:string, edit) {
+		task = task.replace('edit-', '');
+		var taskToEdit = document.getElementsByClassName(task)[0];
+		var  taskname = this.getCookie(task, 'yes')[1]; // error
+		var inputClass = 'field-'+task;
+		var taskNo = task.split('-').pop();
+
+		edit.onclick = () => {
+			var editBox = document.createElement('li');
+			editBox.setAttribute('id', 'edit-'+task);
+
+			var cancelLi = document.createElement('li');
+			var cancelBtn = document.createElement('button');
+			this.setAttributes(cancelBtn, {
+				'title': 'Cancel',
+				'id': 'cancel-'+task,
+				'class': 'round btn btn-danger',
+			});
+			var cancelIco = document.createElement('i');
+			this.setAttributes(cancelIco, {
+				'id': 'cancel-'+task,
+				'class': 'glyphicon glyphicon-remove'
+			});
+
+			var editInp = document.createElement('input');
+				this.setAttributes(editInp, {
+					'type': 'text',
+					'autcomplete': 'off',
+					'value': taskname,
+					'maxlength': 60,
+					'placeholder': 'Edit Task',
+					'id': 'task',
+					'class': inputClass
+				});
+				
+			var editBtn = document.createElement('button');
+		    this.setAttributes(editBtn, {
+		    	'class': 'btn btn-default save-edit-'+task,
+		    	'title': 'Save Edit',
+		    	'id': 'btn'
+		    });
+
+		    var icon = document.createElement('i');
+		    icon.setAttribute('class', 'small material-icons save-edit-'+task);
+		    var icoText = document.createTextNode('mode_edit');
+		    
+		    icon.appendChild(icoText);
+		    editBtn.appendChild(icon);
+		    cancelBtn.appendChild(cancelIco);
+		    editBox.appendChild(editInp);
+		    editBox.appendChild(editBtn);
+		    cancelLi.appendChild(cancelBtn);
+
+		    taskToEdit.innerHTML = "";
+		    taskToEdit.appendChild(editBox);
+		    taskToEdit.appendChild(cancelLi);
+
+		    var input = document.getElementsByClassName(inputClass)[0];			
+		    var cancel = document.getElementById('cancel-'+task);
+
+			cancel.onclick = () => {
+				taskToEdit.innerHTML = '';
+				this.taskSnippet(taskname, taskNo, taskToEdit);
+			};
+
+			input.onkeyup = () => {
+				editedTask = input.value.trim();
+				
+				if (editedTask.length > 0) {
+					this.editCookie(task, editedTask, taskNo, taskToEdit);
+				}else {
+					// return false;
+				}
+			}
+		}
+	}
+
+	setAttributes(el, attrs) {
+	  	for(var key in attrs) {
+	 	   el.setAttribute(key, attrs[key]);
+	 	 }
+	}
+
+	editCookie(task, editedTask, taskNo, taskToEdit) {
+		var saveBtn = document.getElementsByClassName('save-edit-'+task)[0];
+
+		saveBtn.onclick = () => {
+			taskToEdit.innerHTML = '';
+			var editBox = document.getElementsByClassName('edit-'+task)[0];
+
+			document.cookie = task+"="+editedTask;
+			this.taskSnippet(editedTask, taskNo, taskToEdit)
+		}
+	}
 }
 
 window.onload = () => {
@@ -181,8 +348,9 @@ window.onload = () => {
 	var add = document.getElementById('btn');
 	var message = document.getElementById('message');
 	var list = document.getElementsByClassName('list');
+	var taskCountElm = document.getElementById('task-count');
 	
-	var todo = new ToDo(list);
+	var todo = new ToDo(list, taskCountElm);
 
 	task.onkeyup = () => {
 		todo.getTask(task);
@@ -200,4 +368,11 @@ window.onload = () => {
 	};
 
 	todo.deleteTask(list);
+	todo.edit(list);
+
+	window.onmouseover = () => {
+		console.clear();
+		var taskCount =  todo.cookieLength();
+		todo.taskCount(taskCountElm, taskCount, '('+taskCount+')');
+	}
 };
