@@ -1,6 +1,5 @@
 class ToDo {
-	private task:string = "",
-	 		taskList:string[];
+	private task:string = "", taskList:string[];
 	public taskNo:number;
 	public countTaskELm;
 
